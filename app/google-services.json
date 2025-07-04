@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "236820570576",
+    "firebase_url": "https://mathq-c464b-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "mathq-c464b",
+    "storage_bucket": "mathq-c464b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:236820570576:android:082dba9db3bfe00a4e99d5",
+        "android_client_info": {
+          "package_name": "com.example.mathq"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "236820570576-1nqcs6h4cdcpg2efef2glte6e98ha5mk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3LiLsMH1NFPVb5cwWV8rcUnjiA8Hzx5c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "236820570576-1nqcs6h4cdcpg2efef2glte6e98ha5mk.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
