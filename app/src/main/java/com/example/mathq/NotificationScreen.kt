@@ -18,11 +18,12 @@ import com.example.mathq.common.BottomNavBar
 fun NotificationScreen(
     navController: NavController,
     userId: String,
+    userName: String,
     onBackClick: () -> Unit
 ) {
     // ✅ FIX: The function now correctly accepts the parameters from MainActivity.
     Scaffold(
-        bottomBar = { BottomNavBar(navController = navController, currentUserId = userId) }
+        bottomBar = { BottomNavBar(navController = navController, currentUserId = userId, userName = userName) }
     ) { paddingValues ->
         AppBackground {
             // Your UI for notifications will go here.

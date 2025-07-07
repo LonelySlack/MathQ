@@ -20,11 +20,12 @@ fun HomeScreen(
     navController: NavController,
     onEasyClick: () -> Unit,
     onNormalClick: () -> Unit,
-    onHardClick: () -> Unit
+    onHardClick: () -> Unit,
+    onProfileClick: (String, String) -> Unit
 ) {
     // ✅ FIX 1: Using Scaffold to properly place the BottomNavBar
     Scaffold(
-        bottomBar = { BottomNavBar(navController = navController, currentUserId = userId) }
+        bottomBar = { BottomNavBar(navController = navController, currentUserId = userId, userName = userName) }
     ) { paddingValues ->
         // ✅ FIX 2: Applying the themed background
         AppBackground {

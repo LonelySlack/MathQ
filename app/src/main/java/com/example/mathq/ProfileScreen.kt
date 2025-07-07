@@ -21,6 +21,7 @@ import com.google.firebase.database.FirebaseDatabase
 @Composable
 fun ProfileScreen(
     userId: String,
+    userName: String,
     navController: NavController,
     onNavigateToUpdate: (String) -> Unit,
     onNavigateToDelete: (String) -> Unit
@@ -50,7 +51,7 @@ fun ProfileScreen(
     }
 
     Scaffold(
-        bottomBar = { BottomNavBar(navController = navController, currentUserId = userId) }
+        bottomBar = { BottomNavBar(navController = navController, currentUserId = userId, userName = userName) }
     ) { paddingValues ->
         AppBackground {
             Column(

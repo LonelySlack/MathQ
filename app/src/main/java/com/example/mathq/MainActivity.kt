@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.navigation.compose.*
-import com.example.mathq.screens.*
+import com.example.mathq.screens.* // Ensure all your screens are imported
 import com.example.mathq.ui.theme.MathQTheme
 import com.google.firebase.database.FirebaseDatabase
 import java.net.URLEncoder
@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    // In MainActivity.kt, inside the NavHost composable
                     composable("home/{userId}/{userName}") { backStackEntry ->
                         val userId = backStackEntry.arguments?.getString("userId") ?: ""
                         val userName = backStackEntry.arguments?.getString("userName") ?: "User"
@@ -52,50 +53,77 @@ class MainActivity : ComponentActivity() {
                             navController = navController,
                             onEasyClick = { navController.navigate("easygame/$userId") },
                             onNormalClick = { navController.navigate("normalgame/$userId") },
-                            onHardClick = { navController.navigate("hardgame/$userId") }
+                            onHardClick = { navController.navigate("hardgame/$userId") },
+                            // This is the crucial part that was fixed:
+                            onProfileClick = { currentUserId, currentUserName -> // <-- Lambda now accepts parameters
+                                navController.navigate("profile/$currentUserId/$currentUserName")
+                            }
+                            // If you have Leaderboard/Notifications in HomeScreen, they also need this pattern:
+                            // onLeaderboardClick = { currentUserId, currentUserName -> navController.navigate("leaderboard/$currentUserId/$currentUserName") },
+                            // onNotificationsClick = { currentUserId, currentUserName -> navController.navigate("notifications/$currentUserId/$currentUserName") }
                         )
                     }
 
-                    composable("profile/{userId}") { backStackEntry ->
+                    // --- FIX START: Profile route now expects userName ---
+                    composable("profile/{userId}/{userName}") { backStackEntry ->
                         val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                        val userName = backStackEntry.arguments?.getString("userName") ?: "User"
                         ProfileScreen(
                             userId = userId,
+                            userName = userName, // Pass the extracted userName
                             navController = navController,
                             onNavigateToUpdate = { navController.navigate("update/$it") },
                             onNavigateToDelete = {
-                                // After deleting, go back to login screen and clear all previous screens
                                 navController.navigate("login") {
                                     popUpTo(navController.graph.startDestinationId) { inclusive = true }
                                 }
                             }
                         )
                     }
+                    // --- FIX END ---
 
                     // You would add UpdateProfileScreen and DeleteProfileScreen composables here...
+                    // Ensure update route also includes userName if needed by UpdateProfileScreen
+                    // composable("update/{userId}/{userName}") { ... }
 
                     composable("easygame/{userId}") { backStackEntry ->
                         val userId = backStackEntry.arguments?.getString("userId") ?: ""
                         EasyGameScreen(userId = userId, navController = navController)
                     }
                     // Define normalgame and hardgame routes here...
+                    // composable("normalgame/{userId}") { ... }
+                    // composable("hardgame/{userId}") { ... }
 
-                    // ✅ FIX: The routes for leaderboard and notifications now correctly accept the userId
-                    composable("leaderboard/{userId}") { backStackEntry ->
+
+                    composable("leaderboard/{userId}/{userName}") { backStackEntry ->
                         val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                        val userName = backStackEntry.arguments?.getString("userName") ?: "User"
                         LeaderboardScreen(
                             navController = navController,
                             userId = userId,
-                            onBackClick = { navController.popBackStack() }
+                            userName = userName,
+                            onBackClick = {
+                                navController.previousBackStackEntry
+                                    ?.savedStateHandle
+                                    ?.set("updatedUserName", userName)
+                                navController.popBackStack()
+                            }
                         )
                     }
 
-                    composable("notifications/{userId}") { backStackEntry ->
+                    composable("notifications/{userId}/{userName}") { backStackEntry ->
                         val userId = backStackEntry.arguments?.getString("userId") ?: ""
-                        // This is a placeholder screen, you would create your actual UI here
+                        val userName = backStackEntry.arguments?.getString("userName") ?: "User"
                         NotificationScreen(
                             navController = navController,
                             userId = userId,
-                            onBackClick = { navController.popBackStack() }
+                            userName = userName,
+                            onBackClick = {
+                                navController.previousBackStackEntry
+                                    ?.savedStateHandle
+                                    ?.set("updatedUserName", userName)
+                                navController.popBackStack()
+                            }
                         )
                     }
                 }

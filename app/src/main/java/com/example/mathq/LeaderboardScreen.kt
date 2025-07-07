@@ -39,6 +39,7 @@ import com.example.mathq.models.LeaderboardUser
 fun LeaderboardScreen(
     navController: NavController,
     userId: String,
+    userName: String,
     onBackClick: () -> Unit
 ) {
     var easyList by remember { mutableStateOf<List<LeaderboardUser>>(emptyList()) }
@@ -65,7 +66,7 @@ fun LeaderboardScreen(
     }
 
     Scaffold(
-        bottomBar = { BottomNavBar(navController = navController, currentUserId = userId) }
+        bottomBar = { BottomNavBar(navController = navController, currentUserId = userId, userName = userName) }
     ) { paddingValues ->
         AppBackground {
             Column(

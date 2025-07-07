@@ -18,8 +18,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.mathq.R
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.Color
 import com.example.mathq.common.AppBackground
 import com.example.mathq.data.AuthRepository
+import com.example.mathq.ForgotPasswordDialog
 
 @Composable
 fun LoginScreen(
@@ -31,6 +34,7 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
 
     AppBackground {
         Column(
@@ -85,9 +89,12 @@ fun LoginScreen(
                     }
                 }
             )
-            TextButton(onClick = { /* Handle forgot password */ }) {
-                Text("Forgot Password")
-            }
+                TextButton(onClick = { showForgotPasswordDialog = true }) {
+                    Text(
+                        text = "Forgot Password",
+                        style = TextStyle(color = Color.Black) // THIS IS THE CORRECT PLACEMENT
+                    )
+                }
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
@@ -141,5 +148,26 @@ fun LoginScreen(
                 Text("Create Account", style = MaterialTheme.typography.titleMedium)
             }
         }
+
+        if (showForgotPasswordDialog) {
+            ForgotPasswordDialog(
+                onDismiss = { showForgotPasswordDialog = false },
+                onResetPassword = { resetEmail ->
+                    // *** MODIFICATION HERE: Comment out or remove the AuthRepository call ***
+                    // AuthRepository.sendPasswordResetEmail(resetEmail) { isSuccess ->
+                    //     if (isSuccess) {
+                    //         Toast.makeText(context, "Password reset email sent to $resetEmail", Toast.LENGTH_LONG).show()
+                    //     } else {
+                    //         Toast.makeText(context, "Failed to send reset email. Please check the email.", Toast.LENGTH_LONG).show()
+                    //     }
+                    //     showForgotPasswordDialog = false
+                    // }
+
+                    // Instead, just show a Toast message for now
+                    Toast.makeText(context, "Password reset functionality is temporarily disabled for $resetEmail.", Toast.LENGTH_LONG).show()
+                    showForgotPasswordDialog = false // Still dismiss the dialog
+                })
+            }
+        }
     }
-}
+
