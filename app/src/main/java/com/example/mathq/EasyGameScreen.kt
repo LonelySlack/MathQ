@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import checkAndSendNotifications
 import com.example.mathq.common.AppBackground
 import com.example.mathq.data.AuthRepository
 import com.example.mathq.game.QuestionGenerator
@@ -37,7 +38,6 @@ fun EasyGameScreen(userId: String, navController: NavController) {
         if (isGameOver) return
         isGameOver = true
 
-        // ✅ FIX: The score-saving logic is now directly inside the screen, as you requested.
         val userRef = db.getReference("User").child(userId)
         userRef.get().addOnSuccessListener { snapshot ->
             val oldTotal = snapshot.child("total_score").getValue(Int::class.java) ?: 0
@@ -46,25 +46,40 @@ fun EasyGameScreen(userId: String, navController: NavController) {
 
             val updates = mutableMapOf<String, Any>()
             updates["total_score"] = oldTotal + score
+
+            var beatGlobalHighScore = false
+            var beatEasyHighScore = false
+
             if (score > oldHigh) {
                 updates["highest_score"] = score
+                beatGlobalHighScore = true
             }
             if (score > oldEasyHigh) {
                 updates["highest_easy_score"] = score
+                beatEasyHighScore = true
             }
 
             if (updates.isNotEmpty()) {
                 userRef.updateChildren(updates).addOnCompleteListener { task ->
                     if (task.isSuccessful) {
-                        // After scores are saved, update the leaderboards
+                        // Check if we need to notify others that this user beat their score
+                        checkAndSendNotifications(
+                            userId = userId,
+                            userName = "Player", // Replace with real username if available
+                            currentScore = score,
+                            beatGlobalHighScore = beatGlobalHighScore,
+                            beatEasyHighScore = beatEasyHighScore,
+                            beatNormalHighScore = false, // Hard mode doesn't affect normal high score
+                            beatHardHighScore = false,   // So set these to false
+                            scoreType = "easy"
+                        )
                         AuthRepository.updateAllLeaderboards()
                     }
-                    Toast.makeText(context, "Game Over! Your final score: $score", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Game Over! Final Score: $score", Toast.LENGTH_LONG).show()
                     navController.popBackStack()
                 }
             } else {
-                // No new high scores, just show toast and go back
-                Toast.makeText(context, "Game Over! Your final score: $score", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Game Over! Final Score: $score", Toast.LENGTH_LONG).show()
                 navController.popBackStack()
             }
         }

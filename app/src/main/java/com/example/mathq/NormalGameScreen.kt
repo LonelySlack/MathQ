@@ -15,16 +15,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import checkAndSendNotifications
 import com.example.mathq.common.AppBackground
 import com.example.mathq.game.QuestionGenerator.generateNormalQuestion
 import com.google.firebase.database.FirebaseDatabase
 import java.text.SimpleDateFormat
 import java.util.*
 import com.example.mathq.model.Question
+import com.google.firebase.database.DatabaseReference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 @Composable
 fun NormalGameScreen(userId: String, navController: NavController) {
@@ -51,19 +54,41 @@ fun NormalGameScreen(userId: String, navController: NavController) {
         sessionRef.child("score").setValue(score)
 
         val userRef = db.getReference("User").child(userId)
-        userRef.get().addOnSuccessListener {
-            val oldTotal = it.child("total_score").getValue(Int::class.java) ?: 0
-            val oldHigh = it.child("highest_score").getValue(Int::class.java) ?: 0
-            val oldNormalHigh = it.child("highest_normal_score").getValue(Int::class.java) ?: 0
+        userRef.get().addOnSuccessListener { snapshot ->
+            val oldTotal = snapshot.child("total_score").getValue(Int::class.java) ?: 0
+            val oldHigh = snapshot.child("highest_score").getValue(Int::class.java) ?: 0
+            val oldNormalHigh = snapshot.child("highest_normal_score").getValue(Int::class.java) ?: 0
 
             val updates = mutableMapOf<String, Any>()
             updates["total_score"] = oldTotal + score
-            if (score > oldHigh) updates["highest_score"] = score
-            if (score > oldNormalHigh) updates["highest_normal_score"] = score
+
+            var beatGlobalHighScore = false
+            var beatNormalHighScore = false
+
+            if (score > oldHigh) {
+                updates["highest_score"] = score
+                beatGlobalHighScore = true
+            }
+            if (score > oldNormalHigh) {
+                updates["highest_normal_score"] = score
+                beatNormalHighScore = true
+            }
 
             if (updates.isNotEmpty()) {
                 userRef.updateChildren(updates)
             }
+
+            // 🔔 Trigger notification check
+            checkAndSendNotifications(
+                userId = userId,
+                userName = "Player", // Replace with real username if available
+                currentScore = score,
+                beatGlobalHighScore = beatGlobalHighScore,
+                beatNormalHighScore = beatNormalHighScore,
+                beatHardHighScore = false, // Hard mode doesn't affect normal high score
+                beatEasyHighScore = false,   // So set these to false
+                scoreType = "normal"
+            )
 
             Toast.makeText(context, "Game Over. Final Score: $score", Toast.LENGTH_LONG).show()
             navController.popBackStack()
@@ -91,14 +116,31 @@ fun NormalGameScreen(userId: String, navController: NavController) {
     }
 
     LaunchedEffect(Unit) {
-        val sessionData = mapOf(
+        val sessionData = hashMapOf<String, Any>(
             "user_id" to userId,
             "score" to 0,
             "difficulty_level" to "normal",
             "session_date" to SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
         )
+
         sessionRef.setValue(sessionData)
         startTimer()
+    }
+
+    fun sendNotification(
+        notifRef: DatabaseReference,
+        targetUserId: String,
+        scorerId: String,
+        scorerName: String
+    ) {
+        val newNotif = mapOf(
+            "id" to (notifRef.push().key ?: UUID.randomUUID().toString()),
+            "title" to "High Score Beaten",
+            "message" to "User $scorerName beat your high score in Normal Mode!",
+            "timestamp" to SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        ) as Map<String, Any>
+
+        notifRef.child(targetUserId).child(newNotif["id"] as String).setValue(newNotif)
     }
 
     fun handleAnswer(option: String) {
@@ -110,7 +152,7 @@ fun NormalGameScreen(userId: String, navController: NavController) {
 
         // Log the answer
         val logId = db.getReference("AnswerLog").push().key ?: UUID.randomUUID().toString()
-        val logData = mapOf(
+        val logData = hashMapOf<String, Any>(
             "session_id" to sessionId,
             "question_text" to currentQuestion.question,
             "option_a" to currentQuestion.options[0],
@@ -119,8 +161,9 @@ fun NormalGameScreen(userId: String, navController: NavController) {
             "option_d" to currentQuestion.options[3],
             "user_answer" to option,
             "correct_answer" to currentQuestion.answer,
-            "is_correct" to isCorrect
+            "is_correct" to (option == currentQuestion.answer)
         )
+
         db.getReference("AnswerLog").child(logId).setValue(logData)
 
         // End game if max wrong reached
