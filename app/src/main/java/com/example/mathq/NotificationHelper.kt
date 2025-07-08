@@ -25,6 +25,7 @@ fun checkAndSendNotifications(
 
     usersRef.addListenerForSingleValueEvent(object : ValueEventListener {
         override fun onDataChange(snapshot: DataSnapshot) {
+            Log.d("NotificationDebug", "Sending notification from user: $userName")
             for (userSnapshot in snapshot.children) {
                 val otherUserId = userSnapshot.key ?: continue
                 if (otherUserId == userId) continue // Skip self
@@ -65,13 +66,13 @@ private fun sendNotification(
     notifRef: DatabaseReference,
     targetUserId: String,
     scorerId: String,
-    scorerName: String,
+    userName: String,
     scoreType: String
 ) {
     val newNotif = NotificationItem(
         id = notifRef.push().key ?: UUID.randomUUID().toString(),
         title = "High Score Beaten",
-        message = "User $scorerName beat your high score!",
+        message = "User $userName beat your high score!",
         timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(java.util.Date())
     )
 

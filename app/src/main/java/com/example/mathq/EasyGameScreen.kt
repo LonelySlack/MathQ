@@ -43,6 +43,7 @@ fun EasyGameScreen(userId: String, navController: NavController) {
             val oldTotal = snapshot.child("total_score").getValue(Int::class.java) ?: 0
             val oldHigh = snapshot.child("highest_score").getValue(Int::class.java) ?: 0
             val oldEasyHigh = snapshot.child("highest_easy_score").getValue(Int::class.java) ?: 0
+            val username = snapshot.child("username").getValue(String::class.java) ?: "Unknown Player"
 
             val updates = mutableMapOf<String, Any>()
             updates["total_score"] = oldTotal + score
@@ -65,7 +66,7 @@ fun EasyGameScreen(userId: String, navController: NavController) {
                         // Check if we need to notify others that this user beat their score
                         checkAndSendNotifications(
                             userId = userId,
-                            userName = "Player", // Replace with real username if available
+                            userName = username, // Replace with real username if available
                             currentScore = score,
                             beatGlobalHighScore = beatGlobalHighScore,
                             beatEasyHighScore = beatEasyHighScore,

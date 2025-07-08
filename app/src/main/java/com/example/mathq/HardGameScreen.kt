@@ -58,6 +58,8 @@ fun HardGameScreen(userId: String, navController: NavController) {
             val oldTotal = snapshot.child("total_score").getValue(Int::class.java) ?: 0
             val oldHigh = snapshot.child("highest_score").getValue(Int::class.java) ?: 0
             val oldHardHigh = snapshot.child("highest_hard_score").getValue(Int::class.java) ?: 0
+            val username = snapshot.child("username").getValue(String::class.java) ?: "Unknown Player"
+
 
             val updates = mutableMapOf<String, Any>()
             updates["total_score"] = oldTotal + score
@@ -81,7 +83,7 @@ fun HardGameScreen(userId: String, navController: NavController) {
             // 🔔 Trigger notification check
             checkAndSendNotifications(
                 userId = userId,
-                userName = "Player", // Replace with real username if available
+                userName = username, // Replace with real username if available
                 currentScore = score,
                 beatGlobalHighScore = beatGlobalHighScore,
                 beatHardHighScore = beatHardHighScore,
