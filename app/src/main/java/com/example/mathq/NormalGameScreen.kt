@@ -27,6 +27,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import java.util.Locale
 
 @Composable
@@ -58,8 +60,6 @@ fun NormalGameScreen(userId: String, navController: NavController) {
             val oldTotal = snapshot.child("total_score").getValue(Int::class.java) ?: 0
             val oldHigh = snapshot.child("highest_score").getValue(Int::class.java) ?: 0
             val oldNormalHigh = snapshot.child("highest_normal_score").getValue(Int::class.java) ?: 0
-            val username = snapshot.child("username").getValue(String::class.java) ?: "Unknown Player"
-
 
             val updates = mutableMapOf<String, Any>()
             updates["total_score"] = oldTotal + score
@@ -80,10 +80,14 @@ fun NormalGameScreen(userId: String, navController: NavController) {
                 userRef.updateChildren(updates)
             }
 
+            // 🔑 Fetch and decode username
+            val name = snapshot.child("name").getValue(String::class.java) ?: "Player"
+            val decodedUserName = URLDecoder.decode(name, StandardCharsets.UTF_8.toString())
+
             // 🔔 Trigger notification check
             checkAndSendNotifications(
                 userId = userId,
-                userName = username, // Replace with real username if available
+                userName = decodedUserName, // Replace with real username if available
                 currentScore = score,
                 beatGlobalHighScore = beatGlobalHighScore,
                 beatNormalHighScore = beatNormalHighScore,

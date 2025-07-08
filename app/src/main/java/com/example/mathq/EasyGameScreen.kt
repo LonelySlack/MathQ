@@ -20,6 +20,8 @@ import com.example.mathq.data.AuthRepository
 import com.example.mathq.game.QuestionGenerator
 import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.delay
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 @Composable
 fun EasyGameScreen(userId: String, navController: NavController) {
@@ -43,7 +45,6 @@ fun EasyGameScreen(userId: String, navController: NavController) {
             val oldTotal = snapshot.child("total_score").getValue(Int::class.java) ?: 0
             val oldHigh = snapshot.child("highest_score").getValue(Int::class.java) ?: 0
             val oldEasyHigh = snapshot.child("highest_easy_score").getValue(Int::class.java) ?: 0
-            val username = snapshot.child("username").getValue(String::class.java) ?: "Unknown Player"
 
             val updates = mutableMapOf<String, Any>()
             updates["total_score"] = oldTotal + score
@@ -63,10 +64,15 @@ fun EasyGameScreen(userId: String, navController: NavController) {
             if (updates.isNotEmpty()) {
                 userRef.updateChildren(updates).addOnCompleteListener { task ->
                     if (task.isSuccessful) {
+
+                        // 🔑 Fetch and decode username
+                        val name = snapshot.child("name").getValue(String::class.java) ?: "Player"
+                        val decodedUserName = URLDecoder.decode(name, StandardCharsets.UTF_8.toString())
+
                         // Check if we need to notify others that this user beat their score
                         checkAndSendNotifications(
                             userId = userId,
-                            userName = username, // Replace with real username if available
+                            userName = decodedUserName, // Replace with real username if available
                             currentScore = score,
                             beatGlobalHighScore = beatGlobalHighScore,
                             beatEasyHighScore = beatEasyHighScore,
