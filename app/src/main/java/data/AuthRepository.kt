@@ -1,5 +1,6 @@
 package com.example.mathq.data
 
+import android.util.Log
 import com.example.mathq.models.LeaderboardUser
 import com.example.mathq.models.User
 import com.google.firebase.database.DataSnapshot
@@ -18,29 +19,38 @@ object AuthRepository {
 
     fun registerUser(name: String, email: String, password: String, onResult: (String) -> Unit) {
         val userId = userRef.push().key ?: return
-        val currentTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        val currentTime =
+            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
         val newUser = User(userId, name, email, password, 0, 0, 0, 0, 0, currentTime)
         userRef.child(userId).setValue(newUser)
             .addOnSuccessListener { onResult("Registered successfully!") }
             .addOnFailureListener { onResult("Database error: ${it.message}") }
     }
 
-    fun loginUser(email: String, password: String, onResult: (isSuccess: Boolean, userId: String?) -> Unit) {
-        userRef.orderByChild("email").equalTo(email).addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    val userSnap = snapshot.children.first()
-                    if (password == userSnap.child("password").getValue(String::class.java)) {
-                        onResult(true, userSnap.key)
+    fun loginUser(
+        email: String,
+        password: String,
+        onResult: (isSuccess: Boolean, userId: String?) -> Unit
+    ) {
+        userRef.orderByChild("email").equalTo(email)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    if (snapshot.exists()) {
+                        val userSnap = snapshot.children.first()
+                        if (password == userSnap.child("password").getValue(String::class.java)) {
+                            onResult(true, userSnap.key)
+                        } else {
+                            onResult(false, null)
+                        }
                     } else {
                         onResult(false, null)
                     }
-                } else {
+                }
+
+                override fun onCancelled(error: DatabaseError) {
                     onResult(false, null)
                 }
-            }
-            override fun onCancelled(error: DatabaseError) { onResult(false, null) }
-        })
+            })
     }
 
 
@@ -51,17 +61,18 @@ object AuthRepository {
     fun updateAllLeaderboards() {
         // Helper function to fetch and update a specific leaderboard
         fun updateMode(mode: String, scoreKey: String, limit: Int) {
-            userRef.orderByChild(scoreKey).limitToLast(limit).get().addOnSuccessListener { snapshot ->
-                val topUsers = snapshot.children.mapNotNull { snap ->
-                    val name = snap.child("name").getValue(String::class.java)
-                    val score = snap.child(scoreKey).getValue(Int::class.java)
-                    if (name != null && score != null && score > 0) {
-                        mapOf("name" to name, "score" to score)
-                    } else null
-                }.sortedByDescending { user -> user["score"] as Int }
+            userRef.orderByChild(scoreKey).limitToLast(limit).get()
+                .addOnSuccessListener { snapshot ->
+                    val topUsers = snapshot.children.mapNotNull { snap ->
+                        val name = snap.child("name").getValue(String::class.java)
+                        val score = snap.child(scoreKey).getValue(Int::class.java)
+                        if (name != null && score != null && score > 0) {
+                            mapOf("name" to name, "score" to score)
+                        } else null
+                    }.sortedByDescending { user -> user["score"] as Int }
 
-                leaderboardRef.child(mode).setValue(topUsers)
-            }
+                    leaderboardRef.child(mode).setValue(topUsers)
+                }
         }
 
         // Update difficulty-specific leaderboards (Top 10)
@@ -75,36 +86,65 @@ object AuthRepository {
 
     // getLeaderboardData function remains the same, it's used by the UI.
     fun getLeaderboardData(
-        onResult: (easy: List<LeaderboardUser>, normal: List<LeaderboardUser>, hard: List<LeaderboardUser>) -> Unit
+        callback: (List<LeaderboardUser>, List<LeaderboardUser>, List<LeaderboardUser>) -> Unit
     ) {
-        var easyList: List<LeaderboardUser> = emptyList()
-        var normalList: List<LeaderboardUser> = emptyList()
-        var hardList: List<LeaderboardUser> = emptyList()
-        var fetchesCompleted = 0
-        val totalFetches = 3
+        leaderboardRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                var easyList = listOf<LeaderboardUser>()
+                var normalList = listOf<LeaderboardUser>()
+                var hardList = listOf<LeaderboardUser>()
 
-        fun checkCompletion() {
-            fetchesCompleted++
-            if (fetchesCompleted == totalFetches) {
-                onResult(easyList, normalList, hardList)
+                if (snapshot.exists()) {
+                    easyList = snapshot.child("Easy").children.mapNotNull { child ->
+                        val name = child.child("name").getValue(String::class.java)
+                        val score = child.child("score").getValue(Int::class.java)
+                        if (name != null && score != null) LeaderboardUser(name, score) else null
+                    }
+
+                    normalList = snapshot.child("Normal").children.mapNotNull { child ->
+                        val name = child.child("name").getValue(String::class.java)
+                        val score = child.child("score").getValue(Int::class.java)
+                        if (name != null && score != null) LeaderboardUser(name, score) else null
+                    }
+
+                    hardList = snapshot.child("Hard").children.mapNotNull { child ->
+                        val name = child.child("name").getValue(String::class.java)
+                        val score = child.child("score").getValue(Int::class.java)
+                        if (name != null && score != null) LeaderboardUser(name, score) else null
+                    }
+                }
+
+                callback(easyList, normalList, hardList)
             }
-        }
 
-        fun fetchMode(scoreKey: String, onComplete: (List<LeaderboardUser>) -> Unit) {
-            userRef.orderByChild(scoreKey).limitToLast(10).get().addOnSuccessListener { snapshot ->
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("Leaderboard", "Failed to fetch data: ${error.message}")
+            }
+        })
+    }
+
+
+    fun fetchMode(scoreKey: String, onComplete: (List<LeaderboardUser>) -> Unit) {
+        userRef.orderByChild(scoreKey).limitToLast(10)
+            .get()
+            .addOnSuccessListener { snapshot ->
                 val topUsers = snapshot.children.mapNotNull { snap ->
                     val name = snap.child("name").getValue(String::class.java)
                     val score = snap.child(scoreKey).getValue(Int::class.java)
+
                     if (name != null && score != null && score > 0) {
                         LeaderboardUser(name, score)
-                    } else null
+                    } else {
+                        null
+                    }
                 }.sortedByDescending { it.score }
-                onComplete(topUsers)
-            }.addOnFailureListener { onComplete(emptyList()) }
-        }
 
-        fetchMode("highest_easy_score") { easyList = it; checkCompletion() }
-        fetchMode("highest_normal_score") { normalList = it; checkCompletion() }
-        fetchMode("highest_hard_score") { hardList = it; checkCompletion() }
+                Log.d("Leaderboard", "Loaded $scoreKey: ${topUsers.size} users")
+                onComplete(topUsers)
+            }
+            .addOnFailureListener { exception ->
+                Log.e("Leaderboard", "Failed to fetch $scoreKey: ${exception.message}")
+                onComplete(emptyList())
+            }
     }
 }
