@@ -2,23 +2,30 @@ package com.example.mathq.screens
 
 import android.os.CountDownTimer
 import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.example.mathq.common.AppBackground
+import com.example.mathq.game.QuestionGenerator.generateHardQuestion
 import com.google.firebase.database.FirebaseDatabase
 import java.text.SimpleDateFormat
 import java.util.*
 import com.example.mathq.model.Question
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HardGameScreen(userId: String, onBack: () -> Unit) {
+fun HardGameScreen(userId: String, navController: NavController) {
     val context = LocalContext.current
     val db = FirebaseDatabase.getInstance()
 
@@ -26,6 +33,8 @@ fun HardGameScreen(userId: String, onBack: () -> Unit) {
     var wrongAnswers by remember { mutableStateOf(0) }
     var currentQuestion by remember { mutableStateOf(generateHardQuestion()) }
     var timeLeft by remember { mutableStateOf(30) }
+    var isAnswered by remember { mutableStateOf(false) }
+    var selectedOption by remember { mutableStateOf<String?>(null) }
 
     val maxWrong = 3
     val sessionId = remember { db.getReference("GameSession").push().key ?: UUID.randomUUID().toString() }
@@ -43,18 +52,23 @@ fun HardGameScreen(userId: String, onBack: () -> Unit) {
             val oldHigh = it.child("highest_score").getValue(Int::class.java) ?: 0
             val oldHardHigh = it.child("highest_hard_score").getValue(Int::class.java) ?: 0
 
-            userRef.child("total_score").setValue(oldTotal + score)
-            if (score > oldHigh) userRef.child("highest_score").setValue(score)
-            if (score > oldHardHigh) userRef.child("highest_hard_score").setValue(score)
-        }
+            val updates = mutableMapOf<String, Any>()
+            updates["total_score"] = oldTotal + score
+            if (score > oldHigh) updates["highest_score"] = score
+            if (score > oldHardHigh) updates["highest_hard_score"] = score
 
-        Toast.makeText(context, "Game Over. Score: $score", Toast.LENGTH_LONG).show()
-        onBack()
+            if (updates.isNotEmpty()) {
+                userRef.updateChildren(updates)
+            }
+
+            Toast.makeText(context, "Game Over. Final Score: $score", Toast.LENGTH_LONG).show()
+            navController.popBackStack()
+        }
     }
 
     fun startTimer() {
         timer?.cancel()
-        timer = object : CountDownTimer(30000, 1000) {
+        timer = object : CountDownTimer((timeLeft * 1000).toLong(), 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 timeLeft = (millisUntilFinished / 1000).toInt()
             }
@@ -83,37 +97,69 @@ fun HardGameScreen(userId: String, onBack: () -> Unit) {
         startTimer()
     }
 
-    if (wrongAnswers >= maxWrong) {
-        endGame()
-        return
+    LaunchedEffect(selectedOption) {
+        if (selectedOption != null) {
+            launch {
+                delay(1000)
+                if (!isAnswered) return@launch
+                currentQuestion = generateHardQuestion()
+                selectedOption = null
+                isAnswered = false
+                startTimer()
+            }
+        }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Hard Mode") })
-        }
-    ) { innerPadding ->
+    AppBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Score: $score | Wrong: $wrongAnswers/$maxWrong", style = MaterialTheme.typography.bodyLarge)
-            Text("Time Left: $timeLeft seconds", style = MaterialTheme.typography.bodyMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Score: $score", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Wrong: $wrongAnswers / $maxWrong", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Text("Time Left: $timeLeft seconds", style = MaterialTheme.typography.bodyLarge)
+
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(currentQuestion.question, style = MaterialTheme.typography.headlineSmall)
-            Spacer(modifier = Modifier.height(16.dp))
+            Text(currentQuestion.question, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
+
+            Spacer(modifier = Modifier.weight(1f))
 
             currentQuestion.options.forEach { option ->
+                val isSelected = selectedOption == option
+                val isCorrect = currentQuestion.answer == option
+                val buttonColor by animateColorAsState(
+                    targetValue = when {
+                        isAnswered && isCorrect -> Color(0xFF4CAF50)
+                        isAnswered && isSelected -> Color(0xFFF44336)
+                        else -> MaterialTheme.colorScheme.surface
+                    },
+                    label = "button color"
+                )
+
                 Button(
                     onClick = {
-                        val isCorrect = option == currentQuestion.answer
-                        if (isCorrect) score += 10 else wrongAnswers++
+                        if (isAnswered) return@Button
 
+                        isAnswered = true
+                        selectedOption = option
+
+                        val isCorrect = option == currentQuestion.answer
+
+                        if (isCorrect) score += 20 else wrongAnswers++
+
+                        // Log the answer
                         val logId = db.getReference("AnswerLog").push().key ?: UUID.randomUUID().toString()
                         val logData = mapOf(
                             "session_id" to sessionId,
@@ -130,74 +176,25 @@ fun HardGameScreen(userId: String, onBack: () -> Unit) {
 
                         if (wrongAnswers >= maxWrong) {
                             endGame()
-                        } else {
-                            currentQuestion = generateHardQuestion()
-                            timeLeft = 30
-                            startTimer()
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp)
+                        .height(60.dp)
+                        .padding(vertical = 4.dp),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                    enabled = !isAnswered
                 ) {
-                    Text(option)
+                    Text(
+                        option,
+                        fontSize = 20.sp,
+                        color = if (isAnswered) Color.White else MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
-}
-
-fun generateHardQuestion(): Question {
-    val random = Random()
-    val operators = listOf("+", "-", "×", "÷")
-    var op: String
-    var a: Int
-    var b: Int
-    var questionText: String
-    var correctAnswer: Int
-
-    do {
-        op = operators.random()
-        a = random.nextInt(201) - 100  // -100 to 100
-        b = random.nextInt(199) - 99   // -99 to 99
-
-        when (op) {
-            "+" -> {
-                correctAnswer = a + b
-                questionText = "$a + $b = ?"
-            }
-            "-" -> {
-                correctAnswer = a - b
-                questionText = "$a - $b = ?"
-            }
-            "×" -> {
-                correctAnswer = a * b
-                questionText = "$a × $b = ?"
-            }
-            "÷" -> {
-                b = random.nextInt(10) + 1  // prevent divide by 0
-                correctAnswer = random.nextInt(21) - 10  // -10 to 10
-                a = b * correctAnswer
-                questionText = "$a ÷ $b = ?"
-            }
-            else -> {
-                correctAnswer = a + b
-                questionText = "$a + $b = ?"
-            }
-        }
-    } while (correctAnswer < -100 || correctAnswer > 100)
-
-    val options = mutableSetOf(correctAnswer.toString())
-    while (options.size < 4) {
-        val wrong = correctAnswer + random.nextInt(41) - 20
-        if (wrong != correctAnswer && wrong in -100..100) {
-            options.add(wrong.toString())
-        }
-    }
-
-    return Question(
-        question = questionText,
-        options = options.shuffled(),
-        answer = correctAnswer.toString()
-    )
 }

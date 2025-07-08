@@ -90,9 +90,14 @@ class MainActivity : ComponentActivity() {
                         val userId = backStackEntry.arguments?.getString("userId") ?: ""
                         EasyGameScreen(userId = userId, navController = navController)
                     }
-                    // Define normalgame and hardgame routes here...
-                    // composable("normalgame/{userId}") { ... }
-                    // composable("hardgame/{userId}") { ... }
+                    composable("normalgame/{userId}") { backStackEntry ->
+                        val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                        NormalGameScreen(userId = userId, navController = navController)
+                    }
+                    composable("hardgame/{userId}") { backStackEntry ->
+                        val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                        HardGameScreen(userId = userId, navController = navController)
+                    }
 
 
                     composable("leaderboard/{userId}/{userName}") { backStackEntry ->
